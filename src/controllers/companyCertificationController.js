@@ -250,8 +250,14 @@ exports.verifyCertification = async (req, res) => {
     const companyCertification = await CompanyCertification.findOne({
       certificationId: req.params.certificationId
     })
-      .populate('company')
-      .populate('certification');
+      .populate({
+        path: 'company',
+        select: 'name originCountry scope address'
+      })
+      .populate({
+        path: 'certification',
+        select: 'name certificationType durationInMonths'
+      });
     
     if (!companyCertification) {
       return res.status(404).json({
@@ -260,22 +266,39 @@ exports.verifyCertification = async (req, res) => {
       });
     }
     
-    // Create verification response with limited data
+    // Format address
+    const formattedAddress = [
+      companyCertification.company.address.street,
+      companyCertification.company.address.city,
+      companyCertification.company.address.postalCode,
+      companyCertification.company.address.country
+    ].filter(Boolean).join(', ');
+
+    // Calculate validity period in years if durationInMonths exists
+    const validityPeriod = companyCertification.certification.durationInMonths 
+      ? `${(companyCertification.certification.durationInMonths / 12).toFixed(1)} years`
+      : 'N/A';
+
+    // Create verification response
     const verificationData = {
-      certificationId: companyCertification.certificationId,
       company: {
         name: companyCertification.company.name,
-        identifier: companyCertification.company.companyIdentifier
+        status: companyCertification.status,
+        address: formattedAddress,
+        scope: companyCertification.company.scope,
+        origin: companyCertification.company.originCountry
       },
-      certification: {
-        name: companyCertification.certification.name,
-        type: companyCertification.certification.certificationType
+      certificate: {
+        id: companyCertification.certificationId,
+        scheme: companyCertification.certification.certificationType,
+        validityPeriod: validityPeriod,
+        issueDate: companyCertification.issueDate,
+        firstSurveillanceDate: companyCertification.firstSurveillanceDate || 'N/A',
+        secondSurveillanceDate: companyCertification.secondSurveillanceDate || 'N/A',
+        expiryDate: companyCertification.expiryDate || 'N/A'
       },
-      issueDate: companyCertification.issueDate,
-      expiryDate: companyCertification.expiryDate,
-      status: companyCertification.status,
       isValid: companyCertification.status === 'active' && 
-               new Date(companyCertification.expiryDate) > new Date()
+              (!companyCertification.expiryDate || new Date(companyCertification.expiryDate) > new Date())
     };
     
     res.status(200).json({
