@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const { protect, authorize } = require('./middlewares/auth');
 
 const fieldRouter = require('./routes/fieldRouter');
 const certificationRouter = require('./routes/certificationRouter');
@@ -37,6 +38,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Cookie parser
 app.use(cookieParser());
+
+// Public site only reads; every write (except login) needs a logged-in admin
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'OPTIONS' || req.path === '/auth/login') return next();
+  protect(req, res, () => authorize('admin')(req, res, next));
+});
 
 // Rate limiter to prevent excessive requests
 // const limiter = rateLimit({

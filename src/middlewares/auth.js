@@ -25,6 +25,9 @@ exports.protect = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     req.user = await User.findById(decoded.id);
+    if (!req.user || !req.user.isActive) {
+      return res.status(401).json({ success: false, error: 'Not authorized to access this route' });
+    }
     next();
   } catch (err) {
     return res.status(401).json({ success: false, error: 'Not authorized to access this route' });

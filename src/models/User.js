@@ -38,9 +38,7 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (this.isModified('password')) {
-    console.log('Hashing password for user:', this.email); // Debug
     this.password = await bcrypt.hash(this.password, 10);
-    console.log('Hashed password:', this.password); // Debug (don't log in production)
   }
   next();
 });
